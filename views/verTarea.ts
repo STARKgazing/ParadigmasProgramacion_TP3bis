@@ -1,197 +1,112 @@
-
+import * as readline from "readline";
 import { Tarea, EstadoTarea } from "../models/tarea";
-import { GestorTareas } from "../services/managerTareas";
-import { editarTarea } from "./editarTarea";
 
-interface Readline {
-    question(
-        pregunta: string,
-        callback: (respuesta: string) => void
-    ): void;
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
 
-    close(): void;
-}
-
-function verTareas(
-    rl: Readline,
-    volverAlMenu: () => void
-): void {
-    const gestor = new GestorTareas();
-
-    console.log("\n=== VER TAREAS ===");
-    console.log("1. Ver todas las tareas");
-    console.log("2. Ver tareas pendientes");
-    console.log("3. Ver tareas en proceso");
-    console.log("4. Ver tareas finalizadas");
-    console.log("0. Volver al menú principal");
-
-    rl.question("Elegí una opción: ", (opcion: string) => {
-        const tareas: Tarea[] = gestor.cargarTareas();
-
-        switch (opcion) {
-            case "1":
-                mostrarListaTareas(tareas, rl, volverAlMenu);
-                break;
-
-            case "2":
-                mostrarListaPorEstado(
-                    tareas,
-                    "Pendiente",
-                    rl,
-                    volverAlMenu
-                );
-                break;
-
-            case "3":
-                mostrarListaPorEstado(
-                    tareas,
-                    "En proceso",
-                    rl,
-                    volverAlMenu
-                );
-                break;
-
-            case "4":
-                mostrarListaPorEstado(
-                    tareas,
-                    "Finalizada",
-                    rl,
-                    volverAlMenu
-                );
-                break;
-
-            case "0":
-                volverAlMenu();
-                break;
-
-            default:
-                console.log("Opción inválida.");
-                verTareas(rl, volverAlMenu);
-        }
+function preguntar(mensaje: string): Promise<string> {
+    return new Promise((resolve) => {
+        rl.question(mensaje, resolve);
     });
 }
 
-function mostrarListaPorEstado(
-    tareas: Tarea[],
-    estado: EstadoTarea,
-    rl: Readline,
-    volverAlMenu: () => void
-): void {
-    const tareasFiltradas = tareas.filter(
-        (tarea: Tarea) => tarea.estado === estado
-    );
+// Traduce los estados para mostrarlos de forma legible.
+function mostrarEstado(estado: EstadoTarea): string {
+    const estados: Record<EstadoTarea, string> = {
+        "PENDING": "Pendiente",
+        "IN-PROGRESS": "En proceso",
+        "FINISHED": "Finalizada",
+        "CANCELED": "Cancelada"
+    };
 
-    mostrarListaTareas(
-        tareasFiltradas,
-        rl,
-        volverAlMenu
-    );
+    return estados[estado];
 }
 
-function mostrarListaTareas(
-    tareas: Tarea[],
-    rl: Readline,
-    volverAlMenu: () => void
-): void {
-    console.log("\n=== LISTA DE TAREAS ===");
+// Traduce la dificultad numérica para mostrarla al usuario.
+function mostrarDificultad(dificultad: number): string {
+    const dificultades: Record<number, string> = {
+        1: "Fácil",
+        2: "Media",
+        3: "Difícil"
+    };
+
+    return dificultades[dificultad] ?? "Desconocida";
+}
+
+// Muestra todos los detalles de una tarea.
+export function mostrarDetallesTarea(tarea: Tarea): void {
+    console.log("-----------------------------------");
+    console.log(`Título: ${tarea.titulo}`);
+    console.log(`Descripción: ${tarea.descripcion ?? "Sin descripción"}`);
+    console.log(`Estado: ${mostrarEstado(tarea.estado)}`);
+    console.log(`Creación: ${tarea.creacion}`);
+    console.log(`Última edición: ${tarea.ultimaEdicion ?? "Sin modificaciones"}`);
+    console.log(`Vencimiento: ${tarea.vencimiento ?? "Sin vencimiento"}`);
+    console.log(`Dificultad: ${mostrarDificultad(tarea.dificultad)}`);
+    console.log("-----------------------------------");
+}
+
+export async function verTareas(tareas: Tarea[]): Promise<void> {
+    console.log("\n--- VER MIS TAREAS ---");
 
     if (tareas.length === 0) {
-        console.log("No hay tareas para mostrar.");
-        console.log("0. Volver");
-
-        rl.question("Elegí una opción: ", (opcion: string) => {
-            if (opcion === "0") {
-                verTareas(rl, volverAlMenu);
-                return;
-            }
-
-            console.log("Opción inválida.");
-            mostrarListaTareas(tareas, rl, volverAlMenu);
-        });
-
+        console.log("No hay tareas registradas.");
         return;
     }
 
-    tareas.forEach((tarea: Tarea, indice: number) => {
-        console.log(`${indice + 1}. ${tarea.titulo}`);
-    });
-
+    console.log("1. Ver todas");
+    console.log("2. Ver pendientes");
+    console.log("3. Ver en proceso");
+    console.log("4. Ver finalizadas");
+    console.log("5. Ver canceladas");
     console.log("0. Volver");
 
-    rl.question("Elegí una tarea: ", (opcion: string) => {
-        if (opcion === "0") {
-            verTareas(rl, volverAlMenu);
+    const opcion = await preguntar("\nSeleccione una opción: ");
+
+    let tareasFiltradas: Tarea[] = [];
+
+    switch (opcion) {
+        case "1":
+            tareasFiltradas = tareas;
+            break;
+        case "2":
+            tareasFiltradas = tareas.filter(
+                (tarea) => tarea.estado === "PENDING"
+            );
+            break;
+        case "3":
+            tareasFiltradas = tareas.filter(
+                (tarea) => tarea.estado === "IN-PROGRESS"
+            );
+            break;
+        case "4":
+            tareasFiltradas = tareas.filter(
+                (tarea) => tarea.estado === "FINISHED"
+            );
+            break;
+        case "5":
+            tareasFiltradas = tareas.filter(
+                (tarea) => tarea.estado === "CANCELED"
+            );
+            break;
+        case "0":
             return;
-        }
-
-        const numeroTarea = Number(opcion);
-
-        if (
-            !Number.isInteger(numeroTarea) ||
-            numeroTarea < 1 ||
-            numeroTarea > tareas.length
-        ) {
+        default:
             console.log("Opción inválida.");
-            mostrarListaTareas(tareas, rl, volverAlMenu);
             return;
-        }
+    }
 
-        const tareaSeleccionada = tareas[numeroTarea - 1]!;
+    if (tareasFiltradas.length === 0) {
+        console.log("No hay tareas que coincidan con ese estado.");
+        return;
+    }
 
-        mostrarDetallesTarea(
-            tareaSeleccionada,
-            tareas,
-            rl,
-            volverAlMenu
-        );
+    console.log(`\nSe encontraron ${tareasFiltradas.length} tarea(s):`);
+
+    tareasFiltradas.forEach((tarea, indice) => {
+        console.log(`\nTarea ${indice + 1}:`);
+        mostrarDetallesTarea(tarea);
     });
 }
-
-function mostrarDetallesTarea(
-    tareaSeleccionada: Tarea,
-    tareas: Tarea[],
-    rl: Readline,
-    volverAlMenu: () => void
-): void {
-    console.log("\n=== DETALLES DE LA TAREA ===");
-    console.log(`Título: ${tareaSeleccionada.titulo}`);
-    console.log(`Descripción: ${tareaSeleccionada.descripcion}`);
-    console.log(`Estado: ${tareaSeleccionada.estado}`);
-    console.log(`Dificultad: ${tareaSeleccionada.dificultad}`);
-    console.log(`Fecha de creación: ${tareaSeleccionada.fechaCreacion}`);
-    console.log(
-        "Fecha de finalización: " +
-        (tareaSeleccionada.fechaFinalizacion || "sin fecha")
-    );
-
-    console.log("\nE. Editar tarea");
-    console.log("0. Volver al menú principal");
-
-    rl.question("Elegí una opción: ", (opcion: string) => {
-        switch (opcion.toUpperCase()) {
-            case "E":
-                editarTarea(
-                    rl,
-                    tareaSeleccionada,
-                    tareas,
-                    volverAlMenu
-                );
-                break;
-
-            case "0":
-                volverAlMenu();
-                break;
-
-            default:
-                console.log("Opción inválida.");
-                mostrarDetallesTarea(
-                    tareaSeleccionada,
-                    tareas,
-                    rl,
-                    volverAlMenu
-                );
-        }
-    });
-}
-
-export { verTareas, mostrarDetallesTarea };
