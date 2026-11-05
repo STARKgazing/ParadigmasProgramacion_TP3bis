@@ -1,16 +1,15 @@
-import { Tarea } from "../models/tarea";
+import * as readline from "readline";
 import { GestorTareas } from "../services/managerTareas";
+import { Tarea } from "../models/tarea";
 import { mostrarDetallesTarea } from "./verTarea";
 
-interface Readline {
-    question(
-        pregunta: string,
-        callback: (respuesta: string) => void
-    ): void;
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
 
-    close(): void;
-}
-
+// Normaliza el texto para facilitar las búsquedas.
+// Ignora mayúsculas, minúsculas y tildes.
 function normalizarTexto(texto: string): string {
     return texto
         .toLowerCase()
@@ -18,161 +17,98 @@ function normalizarTexto(texto: string): string {
         .replace(/[\u0300-\u036f]/g, "");
 }
 
-function buscarTarea(
-    rl: Readline,
-    volverAlMenu: () => void
-): void {
-    const gestor = new GestorTareas();
-    const tareas: Tarea[] = gestor.cargarTareas();
+// Permite solicitar información mediante la terminal.
+function preguntar(mensaje: string): Promise<string> {
+    return new Promise((resolve) => {
+        rl.question(mensaje, resolve);
+    });
+}
 
+// Busca tareas utilizando el gestor compartido.
+export async function buscarTarea(gestor: GestorTareas): Promise<void> {
     console.log("\n=== BUSCAR TAREA ===");
+
+    const tareas = gestor.cargarTareas();
 
     if (tareas.length === 0) {
         console.log("No hay tareas para buscar.");
-        console.log("0. Volver al menú principal");
-
-        rl.question(
-            "Elegí una opción: ",
-            (opcion: string) => {
-                if (opcion === "0") {
-                    volverAlMenu();
-                    return;
-                }
-
-                console.log("Opción inválida.");
-                buscarTarea(rl, volverAlMenu);
-            }
-        );
-
         return;
     }
 
-    rl.question(
-        "Escribí el título o palabra clave: ",
-        (busqueda: string) => {
-            if (busqueda.trim() === "") {
-                console.log("La búsqueda no puede estar vacía.");
-                buscarTarea(rl, volverAlMenu);
-                return;
-            }
+    let continuarBuscando = true;
 
-            const textoBuscado = normalizarTexto(busqueda);
-
-            const resultados: Tarea[] = tareas.filter(
-                (tarea: Tarea) => {
-                    const titulo = normalizarTexto(tarea.titulo);
-                    const descripcion = normalizarTexto(
-                        tarea.descripcion
-                    );
-
-                    return (
-                        titulo.includes(textoBuscado) ||
-                        descripcion.includes(textoBuscado)
-                    );
-                }
-            );
-
-            mostrarResultados(
-                resultados,
-                tareas,
-                rl,
-                volverAlMenu
-            );
-        }
-    );
-}
-
-function mostrarResultados(
-    resultados: Tarea[],
-    tareas: Tarea[],
-    rl: Readline,
-    volverAlMenu: () => void
-): void {
-    console.log("\n=== RESULTADOS DE BÚSQUEDA ===");
-
-    if (resultados.length === 0) {
-        console.log("No se encontraron tareas.");
-        console.log("B. Buscar nuevamente");
-        console.log("0. Volver al menú principal");
-
-        rl.question(
-            "Elegí una opción: ",
-            (opcion: string) => {
-                switch (opcion.toUpperCase()) {
-                    case "B":
-                        buscarTarea(rl, volverAlMenu);
-                        break;
-
-                    case "0":
-                        volverAlMenu();
-                        break;
-
-                    default:
-                        console.log("Opción inválida.");
-                        mostrarResultados(
-                            resultados,
-                            tareas,
-                            rl,
-                            volverAlMenu
-                        );
-                }
-            }
+    while (continuarBuscando) {
+        const busqueda = await preguntar(
+            "\nEscribí el título o palabra clave (0 para volver): "
         );
 
-        return;
+        if (busqueda.trim() === "0") {
+            break;
+        }
+
+        if (busqueda.trim() === "") {
+            console.log("La búsqueda no puede estar vacía.");
+            continue;
+        }
+
+        const textoBuscado = normalizarTexto(busqueda);
+
+        // Busca coincidencias en títulos y descripciones.
+        // Si la descripción es null, se considera texto vacío.
+        const resultados: Tarea[] = tareas.filter((tarea) => {
+            const titulo = normalizarTexto(tarea.titulo);
+            const descripcion = normalizarTexto(
+                tarea.descripcion ?? ""
+            );
+
+            return (
+                titulo.includes(textoBuscado) ||
+                descripcion.includes(textoBuscado)
+            );
+        });
+
+        console.log("\n=== RESULTADOS DE BÚSQUEDA ===");
+
+        if (resultados.length === 0) {
+            console.log("No se encontraron tareas.");
+            continue;
+        }
+
+        resultados.forEach((tarea, indice) => {
+            console.log(`${indice + 1}. ${tarea.titulo}`);
+        });
+
+        console.log("\nB. Buscar nuevamente");
+        console.log("0. Volver al menú principal");
+
+        const opcion = await preguntar("Elegí una opción: ");
+
+        if (opcion.toUpperCase() === "B") {
+            continue;
+        }
+
+        if (opcion === "0") {
+            break;
+        }
+
+        const numeroTarea = Number(opcion);
+
+        if (
+            !Number.isInteger(numeroTarea) ||
+            numeroTarea < 1 ||
+            numeroTarea > resultados.length
+        ) {
+            console.log("Opción inválida.");
+            continue;
+        }
+
+        // Muestra los detalles de la tarea seleccionada.
+        const tareaSeleccionada = resultados[numeroTarea - 1];
+
+        if (tareaSeleccionada) {
+            mostrarDetallesTarea(tareaSeleccionada);
+        }
     }
 
-    resultados.forEach((tarea: Tarea, indice: number) => {
-        console.log(`${indice + 1}. ${tarea.titulo}`);
-    });
-
-    console.log("B. Buscar nuevamente");
-    console.log("0. Volver al menú principal");
-
-    rl.question(
-        "Elegí una tarea: ",
-        (opcion: string) => {
-            switch (opcion.toUpperCase()) {
-                case "B":
-                    buscarTarea(rl, volverAlMenu);
-                    break;
-
-                case "0":
-                    volverAlMenu();
-                    break;
-
-                default: {
-                    const numeroTarea = Number(opcion);
-
-                    if (
-                        Number.isNaN(numeroTarea) ||
-                        numeroTarea < 1 ||
-                        numeroTarea > resultados.length ||
-                        !Number.isInteger(numeroTarea)
-                    ) {
-                        console.log("Opción inválida.");
-                        mostrarResultados(
-                            resultados,
-                            tareas,
-                            rl,
-                            volverAlMenu
-                        );
-                        return;
-                    }
-
-                    const tareaSeleccionada =
-                        resultados[numeroTarea - 1]!;
-
-                    mostrarDetallesTarea(
-                        tareaSeleccionada,
-                        tareas,
-                        rl,
-                        volverAlMenu
-                    );
-                }
-            }
-        }
-    );
+    rl.close();
 }
-
-export { buscarTarea };
