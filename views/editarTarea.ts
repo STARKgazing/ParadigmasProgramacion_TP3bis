@@ -1,348 +1,194 @@
-
-import {
-    Tarea,
-    EstadoTarea,
-    DificultadTarea
-} from "../models/tarea";
-
+import * as readline from "readline";
+import { Tarea, EstadoTarea, DificultadTarea } from "../models/tarea";
 import { GestorTareas } from "../services/managerTareas";
 
-interface Readline {
-    question(
-        pregunta: string,
-        callback: (respuesta: string) => void
-    ): void;
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
 
-    close(): void;
-}
-
-function estaEnBlanco(valor: string): boolean {
-    return valor.trim() === "";
-}
-
-// Editar título
-function editarTitulo(
-    rl: Readline,
-    tarea: Tarea,
-    continuar: (titulo: string) => void
-): void {
-    rl.question(
-        `Título [${tarea.titulo}]: `,
-        (nuevoTitulo: string) => {
-            if (nuevoTitulo === "") {
-                continuar(tarea.titulo);
-                return;
-            }
-
-            if (estaEnBlanco(nuevoTitulo)) {
-                console.log("El título no puede estar vacío.");
-                editarTitulo(rl, tarea, continuar);
-                return;
-            }
-
-            continuar(nuevoTitulo);
-        }
-    );
-}
-
-// Editar descripción
-function editarDescripcion(
-    rl: Readline,
-    tarea: Tarea,
-    continuar: (descripcion: string) => void
-): void {
-    rl.question(
-        `Descripción [${tarea.descripcion}]: `,
-        (nuevaDescripcion: string) => {
-            if (nuevaDescripcion === "") {
-                continuar(tarea.descripcion);
-                return;
-            }
-
-            // Mantener el comportamiento del programa original.
-            if (estaEnBlanco(nuevaDescripcion)) {
-                continuar("empty");
-                return;
-            }
-
-            if (nuevaDescripcion.length > 200) {
-                console.log(
-                    "La descripción no puede superar los 200 caracteres."
-                );
-
-                editarDescripcion(rl, tarea, continuar);
-                return;
-            }
-
-            continuar(nuevaDescripcion);
-        }
-    );
-}
-
-// Editar estado
-function editarEstado(
-    rl: Readline,
-    tarea: Tarea,
-    continuar: (estado: EstadoTarea) => void
-): void {
-    console.log("\n=== ESTADO ===");
-    console.log(`Estado actual: ${tarea.estado}`);
-    console.log("1. Pendiente");
-    console.log("2. En proceso");
-    console.log("3. Finalizada");
-
-    rl.question(
-        "Elegí un estado (ENTER para mantener): ",
-        (opcion: string) => {
-            if (opcion === "") {
-                continuar(tarea.estado);
-                return;
-            }
-
-            switch (opcion) {
-                case "1":
-                    continuar("Pendiente");
-                    break;
-                case "2":
-                    continuar("En proceso");
-                    break;
-                case "3":
-                    continuar("Finalizada");
-                    break;
-                default:
-                    console.log("Opción inválida.");
-                    editarEstado(rl, tarea, continuar);
-            }
-        }
-    );
-}
-
-// Editar dificultad
-function editarDificultad(
-    rl: Readline,
-    tarea: Tarea,
-    continuar: (dificultad: DificultadTarea) => void
-): void {
-    console.log("\n=== DIFICULTAD ===");
-    console.log(`Dificultad actual: ${tarea.dificultad}`);
-    console.log("1. Facil");
-    console.log("2. Medio");
-    console.log("3. Dificil");
-
-    rl.question(
-        "Elegí una dificultad (ENTER para mantener): ",
-        (opcion: string) => {
-            if (opcion === "") {
-                continuar(tarea.dificultad);
-                return;
-            }
-
-            switch (opcion) {
-                case "1":
-                    continuar("Facil");
-                    break;
-                case "2":
-                    continuar("Medio");
-                    break;
-                case "3":
-                    continuar("Dificil");
-                    break;
-                default:
-                    console.log("Opción inválida.");
-                    editarDificultad(rl, tarea, continuar);
-            }
-        }
-    );
-}
-
-// Editar fecha de finalización
-function editarFechaFinalizacion(
-    rl: Readline,
-    tarea: Tarea,
-    continuar: (fecha: string | null) => void
-): void {
-    rl.question(
-        `Fecha de finalización [${tarea.fechaFinalizacion || "sin fecha"}]: `,
-        (nuevaFecha: string) => {
-            // ENTER = mantener la fecha actual
-            if (nuevaFecha === "") {
-                continuar(tarea.fechaFinalizacion);
-                return;
-            }
-
-            // Espacios + ENTER = quitar la fecha
-            if (estaEnBlanco(nuevaFecha)) {
-                continuar(null);
-                return;
-            }
-
-            // Validar el formato YYYY-MM-DD
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(nuevaFecha)) {
-                console.log(
-                    "La fecha debe tener el formato YYYY-MM-DD."
-                );
-
-                editarFechaFinalizacion(rl, tarea, continuar);
-                return;
-            }
-
-            // Comprobar que sea una fecha real del calendario
-            const fecha = new Date(`${nuevaFecha}T00:00:00`);
-            const fechaNormalizada =
-                `${fecha.getFullYear()}-${String(
-                    fecha.getMonth() + 1
-                ).padStart(2, "0")}-${String(
-                    fecha.getDate()
-                ).padStart(2, "0")}`;
-
-            if (
-                isNaN(fecha.getTime()) ||
-                fechaNormalizada !== nuevaFecha
-            ) {
-                console.log("La fecha no es válida.");
-                editarFechaFinalizacion(rl, tarea, continuar);
-                return;
-            }
-
-            // La fecha final no puede ser anterior a la creación
-            if (nuevaFecha < tarea.fechaCreacion) {
-                console.log(
-                    "La fecha de finalización no puede ser anterior " +
-                    "a la fecha de creación."
-                );
-
-                editarFechaFinalizacion(rl, tarea, continuar);
-                return;
-            }
-
-            continuar(nuevaFecha);
-        }
-    );
-}
-
-// Comenzar edición
-function editarTarea(
-    rl: Readline,
-    tarea: Tarea,
-    tareas: Tarea[],
-    volverAlMenu: () => void
-): void {
-    const gestor = new GestorTareas();
-
-    console.log("\n=== EDITAR TAREA ===");
-    console.log("ENTER = mantener el valor actual.");
-    console.log(
-        "ESPACIO + ENTER = dejar vacío cuando sea posible."
-    );
-    console.log("");
-
-    editarTitulo(rl, tarea, (nuevoTitulo: string) => {
-        editarDescripcion(
-            rl,
-            tarea,
-            (nuevaDescripcion: string) => {
-                editarEstado(
-                    rl,
-                    tarea,
-                    (nuevoEstado: EstadoTarea) => {
-                        editarDificultad(
-                            rl,
-                            tarea,
-                            (nuevaDificultad: DificultadTarea) => {
-                                editarFechaFinalizacion(
-                                    rl,
-                                    tarea,
-                                    (nuevaFechaFinalizacion: string | null) => {
-                                        try {
-                                            // Actualizar mediante los métodos de Tarea
-                                            tarea.actualizarTitulo(nuevoTitulo);
-                                            tarea.actualizarDescripcion(
-                                                nuevaDescripcion
-                                            );
-                                            tarea.actualizarEstado(nuevoEstado);
-                                            tarea.actualizarDificultad(
-                                                nuevaDificultad
-                                            );
-
-                                            // Se asigna después del estado porque
-                                            // actualizarEstado puede modificarla.
-                                            tarea.actualizarFechaFinalizacion(
-                                                nuevaFechaFinalizacion
-                                            );
-
-                                            // La fecha de creación no cambia.
-                                            gestor.guardarTareas(tareas);
-
-                                            console.log(
-                                                "\n¡Tarea modificada exitosamente!"
-                                            );
-                                            console.log(
-                                                "\n=== TAREA ACTUALIZADA ==="
-                                            );
-                                            console.log(
-                                                `Título: ${tarea.titulo}`
-                                            );
-                                            console.log(
-                                                `Descripción: ${tarea.descripcion}`
-                                            );
-                                            console.log(
-                                                `Estado: ${tarea.estado}`
-                                            );
-                                            console.log(
-                                                `Dificultad: ${tarea.dificultad}`
-                                            );
-                                            console.log(
-                                                `Fecha de creación: ${tarea.fechaCreacion}`
-                                            );
-                                            console.log(
-                                                "Fecha de finalización: " +
-                                                (
-                                                    tarea.fechaFinalizacion ||
-                                                    "sin fecha"
-                                                )
-                                            );
-
-                                            console.log(
-                                                "\n0. Volver al menú principal"
-                                            );
-
-                                            rl.question(
-                                                "Elegí una opción: ",
-                                                (opcion: string) => {
-                                                    if (opcion === "0") {
-                                                        volverAlMenu();
-                                                        return;
-                                                    }
-
-                                                    console.log(
-                                                        "Opción inválida."
-                                                    );
-
-                                                    editarTarea(
-                                                        rl,
-                                                        tarea,
-                                                        tareas,
-                                                        volverAlMenu
-                                                    );
-                                                }
-                                            );
-                                        } catch (error) {
-                                            console.log(
-                                                "No se pudo actualizar la tarea:",
-                                                error instanceof Error
-                                                    ? error.message
-                                                    : error
-                                            );
-                                        }
-                                    }
-                                );
-                            }
-                        );
-                    }
-                );
-            }
-        );
+function preguntar(mensaje: string): Promise<string> {
+    return new Promise((resolve) => {
+        rl.question(mensaje, resolve);
     });
 }
 
-export { editarTarea };
+function fechaValida(fecha: string): boolean {
+    if (fecha.trim() === "") {
+        return false;
+    }
+
+    return !Number.isNaN(new Date(fecha).getTime());
+}
+
+export async function editarTarea(gestor: GestorTareas): Promise<void> {
+    console.log("\n--- EDITAR TAREA ---");
+
+    try {
+        const tareas = gestor.cargarTareas();
+
+        if (tareas.length === 0) {
+            console.log("No hay tareas para editar.");
+            return;
+        }
+
+        // Muestra las tareas disponibles con sus índices.
+        tareas.forEach((tarea, indice) => {
+            console.log(`${indice + 1}. ${tarea.titulo} [${tarea.estado}]`);
+        });
+
+        const opcion = Number(
+            await preguntar("\nSeleccione el número de la tarea: ")
+        );
+
+        const indice = opcion - 1;
+
+        if (
+            !Number.isInteger(opcion) ||
+            indice < 0 ||
+            indice >= tareas.length
+        ) {
+            console.log("Número de tarea inválido.");
+            return;
+        }
+
+        const tareaOriginal = tareas[indice];
+
+        console.log("\nDeje vacío un campo para conservar su valor actual.");
+
+        // Solicita los nuevos valores.
+        const tituloIngresado = await preguntar(
+            `Título (${tareaOriginal.titulo}): `
+        );
+
+        const descripcionIngresada = await preguntar(
+            `Descripción (${tareaOriginal.descripcion ?? "Sin descripción"}): `
+        );
+
+        // Permite modificar el estado.
+        console.log("\nEstados disponibles:");
+        console.log("1. PENDING");
+        console.log("2. IN-PROGRESS");
+        console.log("3. FINISHED");
+        console.log("4. CANCELED");
+
+        const estadoIngresado = await preguntar(
+            `Estado actual: ${tareaOriginal.estado}. Nuevo estado (1-4): `
+        );
+
+        const estados: EstadoTarea[] = [
+            "PENDING",
+            "IN-PROGRESS",
+            "FINISHED",
+            "CANCELED"
+        ];
+
+        let nuevoEstado = tareaOriginal.estado;
+
+        if (estadoIngresado.trim() !== "") {
+            const estadoSeleccionado = estados[Number(estadoIngresado) - 1];
+
+            if (!estadoSeleccionado) {
+                console.log("Estado inválido.");
+                return;
+            }
+
+            nuevoEstado = estadoSeleccionado;
+        }
+
+        // Permite modificar la dificultad.
+        console.log("\nDificultad:");
+        console.log("1. Fácil");
+        console.log("2. Media");
+        console.log("3. Difícil");
+
+        const dificultadIngresada = await preguntar(
+            `Dificultad actual: ${tareaOriginal.dificultad}. Nueva dificultad (1-3): `
+        );
+
+        let nuevaDificultad = tareaOriginal.dificultad;
+
+        if (dificultadIngresada.trim() !== "") {
+            const valor = Number(dificultadIngresada);
+
+            if (![1, 2, 3].includes(valor)) {
+                console.log("Dificultad inválida.");
+                return;
+            }
+
+            nuevaDificultad = valor as DificultadTarea;
+        }
+
+        // Permite modificar la fecha de creación.
+        const creacionIngresada = await preguntar(
+            `Fecha de creación (${tareaOriginal.creacion}): `
+        );
+
+        let nuevaCreacion = tareaOriginal.creacion;
+
+        if (creacionIngresada.trim() !== "") {
+            if (!fechaValida(creacionIngresada)) {
+                console.log("La fecha de creación no es válida.");
+                return;
+            }
+
+            nuevaCreacion = creacionIngresada.trim();
+        }
+
+        // Permite modificar la última edición.
+        // Su valor se actualizará automáticamente al guardar.
+        const vencimientoIngresado = await preguntar(
+            `Fecha de vencimiento (${tareaOriginal.vencimiento ?? "Sin vencimiento"}): `
+        );
+
+        let nuevoVencimiento = tareaOriginal.vencimiento;
+
+        if (vencimientoIngresado.trim() !== "") {
+            if (vencimientoIngresado.trim().toUpperCase() === "NULL") {
+                nuevoVencimiento = null;
+            } else {
+                if (!fechaValida(vencimientoIngresado)) {
+                    console.log("La fecha de vencimiento no es válida.");
+                    return;
+                }
+
+                nuevoVencimiento = vencimientoIngresado.trim();
+            }
+        }
+
+        // Conserva la descripción si no se ingresó un nuevo valor.
+        // Es posible escribir NULL para eliminarla.
+        let nuevaDescripcion = tareaOriginal.descripcion;
+
+        if (descripcionIngresada.trim() !== "") {
+            nuevaDescripcion =
+                descripcionIngresada.trim().toUpperCase() === "NULL"
+                    ? null
+                    : descripcionIngresada.trim();
+        }
+
+        const nuevoTitulo =
+            tituloIngresado.trim() === ""
+                ? tareaOriginal.titulo
+                : tituloIngresado.trim();
+
+        // Construye la tarea actualizada.
+        const tareaActualizada = new Tarea(
+            nuevoTitulo,
+            nuevaDescripcion,
+            nuevoEstado,
+            nuevaCreacion,
+            new Date().toISOString(),
+            nuevoVencimiento,
+            nuevaDificultad
+        );
+
+        // Reemplaza la tarea y guarda los cambios.
+        gestor.editarTarea(indice, tareaActualizada);
+
+        console.log("\nTarea modificada correctamente.");
+
+    } catch (error) {
+        console.error("No se pudo editar la tarea:", error);
+    }
+}
