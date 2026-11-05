@@ -1,109 +1,128 @@
+import * as readline from "readline";
 import { Tarea, EstadoTarea, DificultadTarea } from "../models/tarea";
 import { GestorTareas } from "../services/managerTareas";
 
-interface Readline {
-    question(
-        pregunta: string,
-        callback: (respuesta: string) => void
-    ): void;
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+// Permite solicitar información al usuario mediante la terminal.
+function preguntar(mensaje: string): Promise<string> {
+    return new Promise((resolve) => {
+        rl.question(mensaje, resolve);
+    });
 }
 
-export function agregarTarea(
-    rl: Readline,
-    volverAlMenu: () => void
-): void {
-    const gestor = new GestorTareas();
+// Comprueba si una fecha ingresada es válida.
+function fechaValida(fecha: string): boolean {
+    if (fecha.trim() === "") {
+        return false;
+    }
 
-    // 1. Pedir el título
-    rl.question("Título: ", (titulo: string) => {
-        if (titulo.trim() === "") {
+    return !Number.isNaN(new Date(fecha).getTime());
+}
+
+export async function agregarTarea(gestor: GestorTareas): Promise<void> {
+    console.log("\n--- AGREGAR NUEVA TAREA ---");
+
+    try {
+        // Solicita los datos básicos.
+        const titulo = (await preguntar("Título: ")).trim();
+
+        if (titulo === "") {
             console.log("El título no puede estar vacío.");
-            return agregarTarea(rl, volverAlMenu);
+            return;
         }
 
-        // 2. Pedir la descripción
-        rl.question("Descripción: ", (descripcion: string) => {
-            if (descripcion.length > 200) {
-                console.log(
-                    "La descripción no puede superar los 200 caracteres."
-                );
-                return agregarTarea(rl, volverAlMenu);
+        const descripcionIngresada = await preguntar(
+            "Descripción (dejar vacío si no tiene): "
+        );
+
+        const descripcion =
+            descripcionIngresada.trim() === ""
+                ? null
+                : descripcionIngresada.trim();
+
+        // Solicita y valida el estado.
+        console.log("\nEstados disponibles:");
+        console.log("1. PENDING");
+        console.log("2. IN-PROGRESS");
+        console.log("3. FINISHED");
+        console.log("4. CANCELED");
+
+        const opcionEstado = await preguntar("Seleccione un estado: ");
+
+        const estados: EstadoTarea[] = [
+            "PENDING",
+            "IN-PROGRESS",
+            "FINISHED",
+            "CANCELED"
+        ];
+
+        const estado = estados[Number(opcionEstado) - 1];
+
+        if (!estado) {
+            console.log("Estado inválido.");
+            return;
+        }
+
+        // Solicita y valida la dificultad.
+        console.log("\nDificultad:");
+        console.log("1. Fácil");
+        console.log("2. Media");
+        console.log("3. Difícil");
+
+        const opcionDificultad = Number(
+            await preguntar("Seleccione una dificultad: ")
+        );
+
+        if (![1, 2, 3].includes(opcionDificultad)) {
+            console.log("Dificultad inválida.");
+            return;
+        }
+
+        const dificultad = opcionDificultad as DificultadTarea;
+
+        // Registra la fecha actual como fecha de creación.
+        const creacion = new Date().toISOString();
+
+        // Una tarea nueva todavía no tiene una fecha de última edición.
+        const ultimaEdicion = null;
+
+        // Solicita una fecha de vencimiento opcional.
+        const vencimientoIngresado = await preguntar(
+            "Fecha de vencimiento (YYYY-MM-DD o vacío si no tiene): "
+        );
+
+        let vencimiento: string | null = null;
+
+        if (vencimientoIngresado.trim() !== "") {
+            if (!fechaValida(vencimientoIngresado)) {
+                console.log("La fecha de vencimiento no es válida.");
+                return;
             }
 
-            // 3. Elegir el estado
-            console.log("\n=== ESTADO ===");
-            console.log("1. Pendiente");
-            console.log("2. En proceso");
-            console.log("3. Finalizada");
+            vencimiento = vencimientoIngresado.trim();
+        }
 
-            rl.question("Elegí un estado: ", (opcionEstado: string) => {
-                let estado: EstadoTarea;
+        // Construye el objeto con el formato del nuevo tasks.json.
+        const nuevaTarea = new Tarea(
+            titulo,
+            descripcion,
+            estado,
+            creacion,
+            ultimaEdicion,
+            vencimiento,
+            dificultad
+        );
 
-                switch (opcionEstado) {
-                    case "1":
-                        estado = "Pendiente";
-                        break;
-                    case "2":
-                        estado = "En proceso";
-                        break;
-                    case "3":
-                        estado = "Finalizada";
-                        break;
-                    default:
-                        console.log("Opción inválida.");
-                        return agregarTarea(rl, volverAlMenu);
-                }
+        // Agrega la tarea y guarda los cambios.
+        gestor.agregarTarea(nuevaTarea);
 
-                // 4. Elegir la dificultad
-                console.log("\n=== DIFICULTAD ===");
-                console.log("1. Facil");
-                console.log("2. Medio");
-                console.log("3. Dificil");
+        console.log("\nTarea agregada correctamente.");
 
-                rl.question(
-                    "Elegí una dificultad: ",
-                    (opcionDificultad: string) => {
-                        let dificultad: DificultadTarea;
-
-                        switch (opcionDificultad) {
-                            case "1":
-                                dificultad = "Facil";
-                                break;
-                            case "2":
-                                dificultad = "Medio";
-                                break;
-                            case "3":
-                                dificultad = "Dificil";
-                                break;
-                            default:
-                                console.log("Opción inválida.");
-                                return agregarTarea(rl, volverAlMenu);
-                        }
-
-                        // 5. Crear una instancia de Tarea
-                        const tarea = new Tarea(
-                            titulo,
-                            descripcion,
-                            estado,
-                            dificultad,
-                            new Date().toISOString().split("T")[0]!,
-                            null
-                        );
-
-                        // 6. Guardar la tarea a través del gestor
-                        gestor.agregarTarea(tarea);
-
-                        console.log("\n¡Tarea agregada exitosamente!");
-                        console.log(tarea);
-
-                        // 7. Volver al menú
-                        rl.question(
-                            "\nPresiona ENTER para volver al menú principal...",
-                            () => volverAlMenu()
-                        );
-                    }
-                );
-            });
-        });
-    });
+    } catch (error) {
+        console.error("No se pudo agregar la tarea:", error);
+    }
 }
