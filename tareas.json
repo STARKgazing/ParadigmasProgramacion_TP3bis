@@ -1,0 +1,42 @@
+[
+  {
+    "titulo": "Editada1",
+    "descripcion": "asrgtrse",
+    "estado": "En proceso",
+    "dificultad": "Medio",
+    "fechaCreacion": "2026-09-19",
+    "fechaFinalizacion": null
+  },
+  {
+    "titulo": "Edit",
+    "descripcion": "Ediiiittt",
+    "estado": "Finalizada",
+    "dificultad": "Dificil",
+    "fechaCreacion": "2026-09-19",
+    "fechaFinalizacion": "2026-09-20"
+  },
+  {
+    "titulo": "safdreianfeju",
+    "descripcion": "ijdnijfndjf",
+    "estado": "Pendiente",
+    "dificultad": "Medio",
+    "fechaCreacion": "2026-09-19",
+    "fechaFinalizacion": null
+  },
+  {
+    "titulo": "que onda?",
+    "descripcion": "does this work?",
+    "estado": "En proceso",
+    "dificultad": "Dificil",
+    "fechaCreacion": "2026-09-19",
+    "fechaFinalizacion": null
+  },
+  {
+    "titulo": "Recien Creada",
+    "descripcion": "hola wwweeeeee",
+    "estado": "En proceso",
+    "dificultad": "Dificil",
+    "fechaCreacion": "2026-10-21",
+    "fechaFinalizacion": null
+  }
+]
