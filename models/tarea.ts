@@ -1,42 +1,43 @@
 export type EstadoTarea =
-    | "Pendiente"
-    | "En proceso"
-    | "Finalizada";
+    | "PENDING"
+    | "IN-PROGRESS"
+    | "FINISHED"
+    | "CANCELED";
 
-export type DificultadTarea =
-    | "Facil"
-    | "Medio"
-    | "Dificil";
+export type DificultadTarea = 1 | 2 | 3;
 
 export class Tarea {
     private _titulo: string;
-    private _descripcion: string;
+    private _descripcion: string | null;
     private _estado: EstadoTarea;
+    private _creacion: string;
+    private _ultimaEdicion: string | null;
+    private _vencimiento: string | null;
     private _dificultad: DificultadTarea;
-    private _fechaCreacion: string;
-    private _fechaFinalizacion: string | null;
 
     constructor(
         titulo: string,
-        descripcion: string,
+        descripcion: string | null,
         estado: EstadoTarea,
-        dificultad: DificultadTarea,
-        fechaCreacion: string,
-        fechaFinalizacion: string | null = null
+        creacion: string,
+        ultimaEdicion: string | null,
+        vencimiento: string | null,
+        dificultad: DificultadTarea
     ) {
         this._titulo = titulo;
         this._descripcion = descripcion;
         this._estado = estado;
+        this._creacion = creacion;
+        this._ultimaEdicion = ultimaEdicion;
+        this._vencimiento = vencimiento;
         this._dificultad = dificultad;
-        this._fechaCreacion = fechaCreacion;
-        this._fechaFinalizacion = fechaFinalizacion;
     }
 
     get titulo(): string {
         return this._titulo;
     }
 
-    get descripcion(): string {
+    get descripcion(): string | null {
         return this._descripcion;
     }
 
@@ -44,59 +45,51 @@ export class Tarea {
         return this._estado;
     }
 
+    get creacion(): string {
+        return this._creacion;
+    }
+
+    get ultimaEdicion(): string | null {
+        return this._ultimaEdicion;
+    }
+
+    get vencimiento(): string | null {
+        return this._vencimiento;
+    }
+
     get dificultad(): DificultadTarea {
         return this._dificultad;
-    }
-
-    get fechaCreacion(): string {
-        return this._fechaCreacion;
-    }
-
-    get fechaFinalizacion(): string | null {
-        return this._fechaFinalizacion;
     }
 
     actualizarTitulo(nuevoTitulo: string): void {
         if (nuevoTitulo.trim() === "") {
             throw new Error("El título no puede estar vacío.");
         }
-
         this._titulo = nuevoTitulo;
     }
 
-    actualizarDescripcion(nuevaDescripcion: string): void {
-        if (nuevaDescripcion.length > 200) {
-            throw new Error(
-                "La descripción no puede superar los 200 caracteres."
-            );
-        }
-
+    actualizarDescripcion(nuevaDescripcion: string | null): void {
         this._descripcion = nuevaDescripcion;
     }
 
     actualizarEstado(nuevoEstado: EstadoTarea): void {
         this._estado = nuevoEstado;
-
-        if (nuevoEstado === "Finalizada") {
-            if (this._fechaFinalizacion === null) {
-                this._fechaFinalizacion =
-                    new Date().toISOString().split("T")[0]!;
-            }
-        } else {
-            this._fechaFinalizacion = null;
-        }
     }
 
-    actualizarDificultad(
-        nuevaDificultad: DificultadTarea
-    ): void {
+    actualizarCreacion(nuevaFecha: string): void {
+        this._creacion = nuevaFecha;
+    }
+
+    actualizarUltimaEdicion(nuevaFecha: string | null): void {
+        this._ultimaEdicion = nuevaFecha;
+    }
+
+    actualizarVencimiento(nuevaFecha: string | null): void {
+        this._vencimiento = nuevaFecha;
+    }
+
+    actualizarDificultad(nuevaDificultad: DificultadTarea): void {
         this._dificultad = nuevaDificultad;
-    }
-
-    actualizarFechaFinalizacion(
-        nuevaFecha: string | null
-    ): void {
-        this._fechaFinalizacion = nuevaFecha;
     }
 
     toJSON() {
@@ -104,28 +97,30 @@ export class Tarea {
             titulo: this._titulo,
             descripcion: this._descripcion,
             estado: this._estado,
-            dificultad: this._dificultad,
-            fechaCreacion: this._fechaCreacion,
-            fechaFinalizacion: this._fechaFinalizacion
+            creacion: this._creacion,
+            ultimaEdicion: this._ultimaEdicion,
+            vencimiento: this._vencimiento,
+            dificultad: this._dificultad
         };
     }
 
     static desdeJSON(datos: {
         titulo: string;
-        descripcion: string;
+        descripcion: string | null;
         estado: EstadoTarea;
+        creacion: string;
+        ultimaEdicion: string | null;
+        vencimiento: string | null;
         dificultad: DificultadTarea;
-        fechaCreacion: string;
-        fechaFinalizacion: string | null;
     }): Tarea {
         return new Tarea(
             datos.titulo,
             datos.descripcion,
             datos.estado,
-            datos.dificultad,
-            datos.fechaCreacion,
-            datos.fechaFinalizacion
+            datos.creacion,
+            datos.ultimaEdicion,
+            datos.vencimiento,
+            datos.dificultad
         );
     }
 }
-
